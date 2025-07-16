@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import { 

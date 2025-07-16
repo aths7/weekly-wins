@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry } from '@/lib/supabase/database.types';
 import { getNextFriday, formatDate } from '@/lib/utils';
-import { PlusCircle, Edit3, Calendar, Target, Award, TrendingUp } from 'lucide-react';
+import { PlusCircle, Edit3, Calendar, Award, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Dashboard() {
@@ -24,6 +24,7 @@ export default function Dashboard() {
     if (user) {
       fetchDashboardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchDashboardData = async () => {

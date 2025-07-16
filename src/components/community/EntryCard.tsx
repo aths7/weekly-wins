@@ -11,7 +11,7 @@ interface EntryCardProps {
 export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) {
   const userInitials = entry.profiles?.full_name ? getInitials(entry.profiles.full_name) : 'U';
   const userName = entry.profiles?.full_name || 'Unknown User';
-  const wins = Array.isArray(entry.wins) ? entry.wins : [];
+  const wins = Array.isArray(entry.wins) ? entry.wins as string[] : [];
 
   return (
     <div className={`entry-card ${viewMode === 'list' ? 'lg:flex lg:gap-6' : ''}`}>
