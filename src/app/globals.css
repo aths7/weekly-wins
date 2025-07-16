@@ -1,0 +1,464 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme CSS Variables */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+    
+    /* Custom Weekly Wins colors */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+    --warning: 32.7 94.6% 43.7%;
+    --warning-foreground: 355.7 100% 97.3%;
+    --info: 204.4 93.8% 73.7%;
+    --info-foreground: 355.7 100% 97.3%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+    
+    /* Custom Weekly Wins colors - Dark Mode */
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
+    --warning: 32.7 94.6% 43.7%;
+    --warning-foreground: 20.5 90.2% 4.3%;
+    --info: 204.4 93.8% 73.7%;
+    --info-foreground: 215.4 16.3% 6.9%;
+  }
+}
+
+/* Base styles with proper theme support */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+/* Component-specific styles */
+@layer components {
+  /* Container with safe areas */
+  .container-safe {
+    @apply px-4 sm:px-6 lg:px-8;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Weekly Entry Form Styles */
+  .weekly-form {
+    @apply bg-card text-card-foreground border-border rounded-lg shadow-sm
+           mx-auto max-w-4xl;
+  }
+  
+  .weekly-form__section {
+    @apply space-y-4 p-4 sm:p-6 border-b border-border last:border-b-0;
+  }
+  
+  .weekly-form__header {
+    @apply flex items-center gap-3 text-base sm:text-lg font-semibold text-foreground;
+  }
+  
+  .weekly-form__field {
+    @apply space-y-2;
+  }
+  
+  .weekly-form__label {
+    @apply text-sm font-medium text-foreground flex items-center gap-2;
+  }
+  
+  .weekly-form__input {
+    @apply w-full px-3 py-2 sm:px-4 sm:py-3 bg-background border border-input rounded-md 
+           text-sm sm:text-base text-foreground placeholder:text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+           disabled:opacity-50 disabled:cursor-not-allowed
+           min-h-[44px]; /* Touch-friendly minimum height */
+  }
+  
+  .weekly-form__textarea {
+    @apply w-full px-3 py-2 sm:px-4 sm:py-3 bg-background border border-input rounded-md 
+           text-sm sm:text-base text-foreground placeholder:text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+           disabled:opacity-50 disabled:cursor-not-allowed
+           min-h-[120px] sm:min-h-[140px] resize-y;
+  }
+  
+  /* Community Board Styles */
+  .community-board {
+    @apply bg-background min-h-screen;
+  }
+  
+  .community-grid {
+    @apply grid gap-4 sm:gap-6 
+           grid-cols-1 md:grid-cols-2 xl:grid-cols-3;
+  }
+  
+  .entry-card {
+    @apply bg-card text-card-foreground border border-border rounded-lg 
+           shadow-sm hover:shadow-md transition-shadow duration-200
+           overflow-hidden; /* Prevent content overflow on mobile */
+  }
+  
+  .entry-card__header {
+    @apply flex items-center justify-between p-4 sm:p-6 border-b border-border;
+  }
+  
+  .entry-card__user {
+    @apply flex items-center gap-3 min-w-0; /* Prevent flex item overflow */
+  }
+  
+  .entry-card__avatar {
+    @apply w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary text-primary-foreground 
+           flex items-center justify-center font-medium text-sm sm:text-base
+           flex-shrink-0;
+  }
+  
+  .entry-card__user-info {
+    @apply min-w-0 flex-1;
+  }
+  
+  .entry-card__username {
+    @apply font-medium text-sm sm:text-base truncate;
+  }
+  
+  .entry-card__date {
+    @apply text-xs sm:text-sm text-muted-foreground;
+  }
+  
+  .entry-card__content {
+    @apply p-4 sm:p-6 space-y-3 sm:space-y-4;
+  }
+  
+  .entry-card__section {
+    @apply space-y-2;
+  }
+  
+  .entry-card__section-title {
+    @apply text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2;
+  }
+  
+  .entry-card__section-content {
+    @apply text-sm sm:text-base text-foreground;
+  }
+  
+  /* Button Styles */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 
+           focus:ring-2 focus:ring-ring focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           px-4 py-2 sm:px-6 sm:py-3 rounded-md font-medium transition-colors
+           text-sm sm:text-base min-h-[44px] flex items-center justify-center;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80
+           focus:ring-2 focus:ring-ring focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           px-4 py-2 sm:px-6 sm:py-3 rounded-md font-medium transition-colors
+           text-sm sm:text-base min-h-[44px] flex items-center justify-center;
+  }
+  
+  .btn-outline {
+    @apply border border-input bg-background text-foreground
+           hover:bg-accent hover:text-accent-foreground
+           focus:ring-2 focus:ring-ring focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           px-4 py-2 sm:px-6 sm:py-3 rounded-md font-medium transition-colors
+           text-sm sm:text-base min-h-[44px] flex items-center justify-center;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground
+           focus:ring-2 focus:ring-ring focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           px-4 py-2 sm:px-6 sm:py-3 rounded-md font-medium transition-colors
+           text-sm sm:text-base min-h-[44px] flex items-center justify-center;
+  }
+  
+  /* Status indicators */
+  .status-draft {
+    @apply bg-warning/10 text-warning-foreground border border-warning/20 
+           px-2 py-1 rounded-full text-xs font-medium
+           flex-shrink-0;
+  }
+  
+  .status-published {
+    @apply bg-success/10 text-success-foreground border border-success/20 
+           px-2 py-1 rounded-full text-xs font-medium
+           flex-shrink-0;
+  }
+  
+  /* Navigation styles */
+  .nav-link {
+    @apply text-foreground hover:text-primary hover:bg-accent
+           transition-colors duration-200 px-3 py-2 rounded-md font-medium
+           min-h-[44px] flex items-center;
+  }
+  
+  .nav-link--active {
+    @apply bg-primary/10 text-primary;
+  }
+  
+  /* Mobile navigation */
+  .mobile-nav-item {
+    @apply flex items-center gap-3 px-3 py-3 text-foreground 
+           hover:bg-accent hover:text-accent-foreground 
+           rounded-md transition-colors min-h-[44px];
+  }
+  
+  /* Filter bar responsive */
+  .filter-bar {
+    @apply flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center 
+           p-4 sm:p-6 bg-card border-b border-border;
+  }
+  
+  .filter-group {
+    @apply flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center;
+  }
+  
+  /* User profile responsive */
+  .user-profile {
+    @apply max-w-4xl mx-auto space-y-6 sm:space-y-8;
+  }
+  
+  .user-profile__header {
+    @apply flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center
+           p-4 sm:p-6 bg-card border border-border rounded-lg;
+  }
+  
+  .user-profile__avatar {
+    @apply w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary text-primary-foreground 
+           flex items-center justify-center font-bold text-lg sm:text-xl
+           flex-shrink-0;
+  }
+  
+  .user-profile__info {
+    @apply space-y-2 min-w-0 flex-1;
+  }
+  
+  .user-profile__name {
+    @apply text-xl sm:text-2xl font-bold text-foreground;
+  }
+  
+  .user-profile__stats {
+    @apply grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6;
+  }
+  
+  .user-profile__stat {
+    @apply text-center p-4 bg-muted rounded-lg;
+  }
+  
+  .user-profile__stat-value {
+    @apply text-lg sm:text-xl font-bold text-foreground;
+  }
+  
+  .user-profile__stat-label {
+    @apply text-xs sm:text-sm text-muted-foreground;
+  }
+  
+  /* Form validation styles */
+  .input-error {
+    @apply border-destructive focus:ring-destructive focus:border-destructive;
+  }
+  
+  .error-message {
+    @apply text-destructive text-sm font-medium;
+  }
+  
+  /* Loading states */
+  .loading-skeleton {
+    @apply bg-muted animate-pulse rounded;
+  }
+  
+  .loading-spinner {
+    @apply animate-spin h-5 w-5 text-primary;
+  }
+}
+
+/* Mobile-specific utilities */
+@layer utilities {
+  .text-responsive {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-lg {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-xl {
+    @apply text-lg sm:text-xl;
+  }
+  
+  .padding-responsive {
+    @apply p-4 sm:p-6;
+  }
+  
+  .margin-responsive {
+    @apply m-4 sm:m-6;
+  }
+  
+  .gap-responsive {
+    @apply gap-3 sm:gap-4;
+  }
+  
+  .rounded-responsive {
+    @apply rounded-lg sm:rounded-xl;
+  }
+  
+  /* Touch-friendly interactions */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  .touch-padding {
+    @apply p-3 sm:p-4;
+  }
+  
+  /* Safe area handling */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Scrollable containers */
+  .scroll-container {
+    @apply overflow-y-auto max-h-[calc(100vh-theme(spacing.16))] sm:max-h-[calc(100vh-theme(spacing.20))];
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent;
+  }
+  
+  .glass-effect {
+    @apply backdrop-blur-sm bg-background/80 border border-border/50;
+  }
+  
+  .shadow-soft {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  
+  .dark .shadow-soft {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Mobile-specific media queries */
+@media (max-width: 640px) {
+  .weekly-form__wins-grid {
+    @apply space-y-4;
+  }
+  
+  .community-actions {
+    @apply flex-col items-stretch;
+  }
+  
+  .filter-actions {
+    @apply flex-col gap-2;
+  }
+}
+
+/* Tablet-specific adjustments */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .weekly-form {
+    @apply max-w-2xl;
+  }
+  
+  .community-grid {
+    @apply grid-cols-1 md:grid-cols-2;
+  }
+}
+
+/* Desktop enhancements */
+@media (min-width: 1024px) {
+  .weekly-form {
+    @apply max-w-4xl;
+  }
+  
+  .community-grid {
+    @apply grid-cols-2 xl:grid-cols-3;
+  }
+  
+  .entry-card {
+    @apply hover:scale-[1.02] transition-transform;
+  }
+}
