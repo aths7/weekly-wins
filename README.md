@@ -175,6 +175,10 @@ The app is a standard Next.js application and can be deployed on:
 
 MIT License - see LICENSE file for details.
 
+## Copyright
+
+© 2024 Weekly Wins - Built with ❤️ by [Atharva Wankhede](https://github.com/aths7)
+
 ## Support
 
 For issues and questions:

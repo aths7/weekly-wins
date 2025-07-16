@@ -27,7 +27,9 @@ export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) 
             </p>
           </div>
         </div>
-        <div className="status-published">Published</div>
+        <div className="status-published">
+          <span className="text-xs">✓</span> Published
+        </div>
       </div>
       
       <div className="entry-card__content">
