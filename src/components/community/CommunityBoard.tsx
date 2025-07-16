@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useBreakpoint } from '@/lib/hooks/useBreakpoint';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry } from '@/lib/supabase/database.types';
-import { Search, Filter, Grid, List, Loader2 } from 'lucide-react';
+import { Search, Filter, Grid, List } from 'lucide-react';
 import EntryCard from './EntryCard';
 
 export default function CommunityBoard() {
@@ -75,6 +75,7 @@ export default function CommunityBoard() {
 
   useEffect(() => {
     fetchEntries(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFilter]);
 
   const loadMore = () => {

@@ -17,7 +17,7 @@ export const createServerClient = async () => {
       get(name: string) {
         return cookieStore.get(name)?.value;
       },
-      set(name: string, value: string, options: any) {
+      set(name: string, value: string, options: Record<string, unknown>) {
         try {
           cookieStore.set({ name, value, ...options });
         } catch (error) {
@@ -25,7 +25,7 @@ export const createServerClient = async () => {
           console.error('Error setting cookie:', error);
         }
       },
-      remove(name: string, options: any) {
+      remove(name: string, options: Record<string, unknown>) {
         try {
           cookieStore.set({ name, value: '', ...options });
         } catch (error) {

@@ -30,7 +30,7 @@ export default function LoginForm() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ export default function LoginForm() {
         </form>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/auth/register" className="text-primary hover:text-primary/80 font-medium">
             Sign up
           </Link>

@@ -44,6 +44,7 @@ export default function WeeklyEntryForm() {
     if (user) {
       loadExistingEntry();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Reload entry when week ending date changes
@@ -51,6 +52,7 @@ export default function WeeklyEntryForm() {
     if (user && formData.weekEndingDate) {
       loadExistingEntry();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.weekEndingDate, user]);
 
   const toggleSection = (section: string) => {
@@ -146,6 +148,7 @@ export default function WeeklyEntryForm() {
   useEffect(() => {
     const interval = setInterval(autoSave, 30000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData, user, autoSaving]);
 
   const handleSubmit = async (publish: boolean) => {
@@ -177,8 +180,8 @@ export default function WeeklyEntryForm() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while saving');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while saving');
     } finally {
       setLoading(false);
     }

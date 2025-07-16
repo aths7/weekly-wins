@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry, Profile } from '@/lib/supabase/database.types';
 import { getInitials, formatDate } from '@/lib/utils';
-import { Calendar, Target, Award, TrendingUp, Edit2, Mail, User } from 'lucide-react';
+import { Calendar, Edit2, Mail } from 'lucide-react';
 import EntryCard from '@/components/community/EntryCard';
 
 export default function UserProfile() {
@@ -30,6 +30,7 @@ export default function UserProfile() {
       fetchProfile();
       fetchEntries();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchProfile = async () => {

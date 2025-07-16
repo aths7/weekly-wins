@@ -9,7 +9,6 @@ import {
   Bell, 
   Shield, 
   User, 
-  Mail, 
   Lock, 
   Trash2, 
   LogOut,
@@ -20,7 +19,6 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 export default function Settings() {
   const { user, signOut } = useAuth();
-  const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notifications, setNotifications] = useState({
@@ -37,6 +35,7 @@ export default function Settings() {
     if (user) {
       fetchProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchProfile = async () => {
