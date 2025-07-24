@@ -165,7 +165,7 @@ export default function WeeklyEntryForm() {
         if (currentOrganization) {
           entryData.organization_id = currentOrganization.id;
         } else {
-          entryData.organization_id = null;
+          entryData.organization_id = undefined;
         }
       } catch (orgError) {
         console.warn('Organization ID not supported in auto-save:', orgError);
@@ -216,7 +216,7 @@ export default function WeeklyEntryForm() {
         if (currentOrganization) {
           entryData.organization_id = currentOrganization.id;
         } else {
-          entryData.organization_id = null;
+          entryData.organization_id = undefined;
         }
       } catch (orgError) {
         console.warn('Organization ID not supported in submit:', orgError);

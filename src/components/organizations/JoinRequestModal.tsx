@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { X, Users, Building2, MessageSquare } from 'lucide-react';
 import { Organization } from '@/lib/supabase/database.types';
 
+interface OrganizationSettings {
+  require_approval?: boolean;
+  weekly_reminder_enabled?: boolean;
+  allow_public_view?: boolean;
+}
+
 interface JoinRequestModalProps {
   organization: Organization;
   onSubmit: (message: string) => Promise<void>;
@@ -109,13 +115,13 @@ export default function JoinRequestModal({ organization, onSubmit, onClose }: Jo
                     About this organization:
                   </p>
                   <ul className="text-blue-700 dark:text-blue-300 space-y-1">
-                    {organization.settings?.require_approval && (
+                    {(organization.settings as OrganizationSettings)?.require_approval && (
                       <li>• Your request will need admin approval</li>
                     )}
-                    {organization.settings?.weekly_reminder_enabled && (
+                    {(organization.settings as OrganizationSettings)?.weekly_reminder_enabled && (
                       <li>• Weekly entry reminders are enabled</li>
                     )}
-                    {organization.settings?.allow_public_view ? (
+                    {(organization.settings as OrganizationSettings)?.allow_public_view ? (
                       <li>• Your entries will be publicly visible</li>
                     ) : (
                       <li>• Your entries will only be visible to organization members</li>

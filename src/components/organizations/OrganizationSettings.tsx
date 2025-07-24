@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Save, X, Settings, Palette, Shield, Bell } from 'lucide-react';
 import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { getDefaultOrganizationSettings, getDayName } from '@/lib/organizations/utils';
-import { Organization, OrganizationSettings as OrgSettings } from '@/lib/supabase/database.types';
+import { Organization, OrganizationSettings as OrgSettings, Json } from '@/lib/supabase/database.types';
 
 interface OrganizationSettingsProps {
   onClose: () => void;
@@ -27,10 +27,10 @@ export default function OrganizationSettings({ onClose, onSuccess }: Organizatio
         secondary_color: currentOrganization.secondary_color,
       });
       
-      if (currentOrganization.settings) {
+      if (currentOrganization.settings && typeof currentOrganization.settings === 'object' && !Array.isArray(currentOrganization.settings)) {
         setSettings({
           ...getDefaultOrganizationSettings(),
-          ...(currentOrganization.settings as OrgSettings),
+          ...(currentOrganization.settings as unknown as OrgSettings),
         });
       }
     }
@@ -46,7 +46,7 @@ export default function OrganizationSettings({ onClose, onSuccess }: Organizatio
     try {
       await updateOrganization(currentOrganization.id, {
         ...formData,
-        settings,
+        settings: JSON.parse(JSON.stringify(settings)) as Json,
       });
       
       onSuccess?.();

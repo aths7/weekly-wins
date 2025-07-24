@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Check, Filter, Users, UserPlus, Award, Building2, X, Clock } from 'lucide-react';
+import { Bell, Check, Users, UserPlus, Award, Building2, X, Clock } from 'lucide-react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { UserNotificationWithContext } from '@/lib/supabase/database.types';
 import { formatDistanceToNow } from 'date-fns';
@@ -108,7 +108,7 @@ export default function NotificationsPage() {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key as any)}
+            onClick={() => setFilter(tab.key as 'all' | 'unread' | 'join_request' | 'invitation')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               filter === tab.key
                 ? 'bg-background text-foreground shadow-sm'
@@ -168,7 +168,7 @@ function NotificationCard({ notification, onClick, onDelete, getIcon, getColor }
     setIsDeleting(true);
     try {
       await onDelete();
-    } catch (error) {
+    } catch {
       setIsDeleting(false);
     }
   };

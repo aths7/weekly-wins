@@ -4,6 +4,12 @@ import { Users, Calendar, Award, Building2, UserCheck, Clock } from 'lucide-reac
 import { Organization, OrganizationMembership } from '@/lib/supabase/database.types';
 import { formatDistanceToNow } from 'date-fns';
 
+interface OrganizationSettings {
+  require_approval?: boolean;
+  allow_public_view?: boolean;
+  weekly_reminder_enabled?: boolean;
+}
+
 interface OrganizationCardProps {
   organization: Organization & {
     member_count?: number;
@@ -129,17 +135,17 @@ export default function OrganizationCard({ organization, userMemberships, userJo
       <div className="mb-4 p-3 bg-muted rounded-md">
         <div className="text-xs text-muted-foreground mb-2">Organization Settings:</div>
         <div className="flex flex-wrap gap-2">
-          {organization.settings?.require_approval && (
+          {(organization.settings as OrganizationSettings)?.require_approval && (
             <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 text-xs rounded">
               Approval Required
             </span>
           )}
-          {organization.settings?.allow_public_view && (
+          {(organization.settings as OrganizationSettings)?.allow_public_view && (
             <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs rounded">
               Public View
             </span>
           )}
-          {organization.settings?.weekly_reminder_enabled && (
+          {(organization.settings as OrganizationSettings)?.weekly_reminder_enabled && (
             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs rounded">
               Weekly Reminders
             </span>
