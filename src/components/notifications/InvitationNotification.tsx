@@ -69,7 +69,7 @@ export default function InvitationNotification({ invitation }: InvitationNotific
 
           {invitation.message && (
             <div className="mb-3 p-3 bg-muted rounded-md">
-              <p className="text-sm text-foreground">"{invitation.message}"</p>
+              <p className="text-sm text-foreground">&ldquo;{invitation.message}&rdquo;</p>
             </div>
           )}
 

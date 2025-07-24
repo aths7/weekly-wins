@@ -10,11 +10,10 @@ import {
   Settings,
   BarChart3,
   Mail,
-  Shield,
-  Calendar
+  Shield
 } from 'lucide-react';
 import { useOrganizations, useOrganizationMembers, useInvitations, useEntryApprovals } from '@/lib/hooks/useOrganizations';
-import { getRoleDisplayName, getRoleColor, getApprovalStatusColor, formatMembershipDate } from '@/lib/organizations/utils';
+import { getRoleDisplayName, getRoleColor, formatMembershipDate } from '@/lib/organizations/utils';
 
 interface AdminDashboardProps {
   onInviteMembers: () => void;
@@ -23,9 +22,9 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ onInviteMembers, onManageSettings }: AdminDashboardProps) {
   const { currentOrganization, hasPermission } = useOrganizations();
-  const { members, updateMemberRole, removeMember, loading: membersLoading } = useOrganizationMembers(currentOrganization?.id || '');
-  const { invitations, cancelInvitation, loading: invitationsLoading } = useInvitations(currentOrganization?.id || '');
-  const { pendingEntries, approveEntry, loading: approvalsLoading } = useEntryApprovals(currentOrganization?.id || '');
+  const { members, updateMemberRole, removeMember } = useOrganizationMembers(currentOrganization?.id || '');
+  const { invitations, cancelInvitation } = useInvitations(currentOrganization?.id || '');
+  const { pendingEntries, approveEntry } = useEntryApprovals(currentOrganization?.id || '');
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'invitations' | 'approvals'>('overview');
 
   if (!currentOrganization || !hasPermission('manage')) {
@@ -33,7 +32,7 @@ export default function AdminDashboard({ onInviteMembers, onManageSettings }: Ad
       <div className="text-center py-8">
         <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-        <p className="text-muted-foreground">You don't have permission to access the admin dashboard.</p>
+        <p className="text-muted-foreground">You don&apos;t have permission to access the admin dashboard.</p>
       </div>
     );
   }

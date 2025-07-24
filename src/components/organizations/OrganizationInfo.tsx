@@ -1,8 +1,13 @@
 'use client';
 
-import { Building2, Users, Calendar, Shield } from 'lucide-react';
+import { Building2, Calendar, Shield } from 'lucide-react';
 import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { getRoleDisplayName, formatMembershipDate } from '@/lib/organizations/utils';
+
+interface OrganizationSettings {
+  require_approval?: boolean;
+  allow_public_view?: boolean;
+}
 
 interface OrganizationInfoProps {
   showDetailed?: boolean;
@@ -82,11 +87,11 @@ export default function OrganizationInfo({ showDetailed = false }: OrganizationI
           <div className="text-xs text-muted-foreground space-y-1">
             <div className="flex justify-between">
               <span>Approval Required:</span>
-              <span>{(currentOrganization.settings as any)?.require_approval ? 'Yes' : 'No'}</span>
+              <span>{(currentOrganization.settings as OrganizationSettings)?.require_approval ? 'Yes' : 'No'}</span>
             </div>
             <div className="flex justify-between">
               <span>Public View:</span>
-              <span>{(currentOrganization.settings as any)?.allow_public_view ? 'Yes' : 'No'}</span>
+              <span>{(currentOrganization.settings as OrganizationSettings)?.allow_public_view ? 'Yes' : 'No'}</span>
             </div>
           </div>
         </div>

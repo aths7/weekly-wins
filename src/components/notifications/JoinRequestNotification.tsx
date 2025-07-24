@@ -5,6 +5,7 @@ import { Check, X, Users, MessageSquare, Clock, User } from 'lucide-react';
 import { useJoinRequests } from '@/lib/hooks/useNotifications';
 import { OrganizationJoinRequest } from '@/lib/supabase/database.types';
 import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
 
 interface JoinRequestNotificationProps {
   request: OrganizationJoinRequest & {
@@ -54,9 +55,11 @@ export default function JoinRequestNotification({ request }: JoinRequestNotifica
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
             {request.profiles?.avatar_url ? (
-              <img
+              <Image
                 src={request.profiles.avatar_url}
                 alt={request.profiles.full_name || 'User'}
+                width={40}
+                height={40}
                 className="w-10 h-10 rounded-full"
               />
             ) : (
@@ -89,7 +92,7 @@ export default function JoinRequestNotification({ request }: JoinRequestNotifica
                   <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Message from user:</p>
-                    <p className="text-sm text-foreground">"{request.message}"</p>
+                    <p className="text-sm text-foreground">&ldquo;{request.message}&rdquo;</p>
                   </div>
                 </div>
               </div>

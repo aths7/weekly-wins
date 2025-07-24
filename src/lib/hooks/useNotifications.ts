@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { 
-  Notification, 
   UserNotificationWithContext,
   OrganizationInvitation,
   OrganizationJoinRequest 

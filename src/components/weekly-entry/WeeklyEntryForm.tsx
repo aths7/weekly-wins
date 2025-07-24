@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { getNextFriday } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Save, Send, Loader2, Clock, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Save, Send, Loader2 } from 'lucide-react';
 
 interface WeeklyEntryFormData {
   wins: string[];
@@ -17,6 +17,18 @@ interface WeeklyEntryFormData {
   challenges: string;
   weekEndingDate: string;
   isPublished: boolean;
+}
+
+interface WeeklyEntryData {
+  user_id: string;
+  week_ending_date: string;
+  wins: string[];
+  work_summary: string;
+  results_contributed: string;
+  learnings: string;
+  challenges: string;
+  is_published: boolean;
+  organization_id?: string;
 }
 
 export default function WeeklyEntryForm() {
@@ -35,7 +47,7 @@ export default function WeeklyEntryForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [autoSaving, setAutoSaving] = useState(false);
-  const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+  // const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
   
   const { isMobile } = useBreakpoint();
   const { user } = useAuth();
@@ -137,7 +149,7 @@ export default function WeeklyEntryForm() {
 
     setAutoSaving(true);
     try {
-      const entryData: any = {
+      const entryData: WeeklyEntryData = {
         user_id: user.id,
         week_ending_date: formData.weekEndingDate,
         wins: formData.wins,
@@ -188,7 +200,7 @@ export default function WeeklyEntryForm() {
     setSuccess('');
 
     try {
-      const entryData: any = {
+      const entryData: WeeklyEntryData = {
         user_id: user.id,
         week_ending_date: formData.weekEndingDate,
         wins: formData.wins,

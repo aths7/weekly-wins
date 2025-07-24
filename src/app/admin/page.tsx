@@ -67,7 +67,7 @@ export default function AdminPage() {
           <Shield className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
           <p className="text-muted-foreground mb-6">
-            You don't have permission to access the admin dashboard for this organization.
+            You don&apos;t have permission to access the admin dashboard for this organization.
           </p>
           <button
             onClick={() => router.push('/dashboard')}

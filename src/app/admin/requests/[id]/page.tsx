@@ -11,6 +11,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { OrganizationJoinRequest } from '@/lib/supabase/database.types';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface RequestWithProfile extends OrganizationJoinRequest {
   profiles: {
@@ -39,7 +40,7 @@ export default function AdminRequestDetailPage() {
     if (requestId) {
       fetchRequest();
     }
-  }, [requestId]);
+  }, [requestId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchRequest = async () => {
     try {
@@ -112,7 +113,7 @@ export default function AdminRequestDetailPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
           <p className="text-muted-foreground mb-6">
-            You don't have permission to view this page. Only organization admins can manage join requests.
+            You don&apos;t have permission to view this page. Only organization admins can manage join requests.
           </p>
           <Link href="/dashboard" className="btn-primary">
             Return to Dashboard
@@ -155,7 +156,7 @@ export default function AdminRequestDetailPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Request Not Found</h1>
           <p className="text-muted-foreground mb-6">
-            The join request you're looking for doesn't exist or has been removed.
+            The join request you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
           <Link href="/admin/requests" className="btn-primary">
             Back to Requests
@@ -191,9 +192,11 @@ export default function AdminRequestDetailPage() {
           <div className="flex items-start gap-4 mb-6">
             <div className="flex-shrink-0">
               {request.profiles?.avatar_url ? (
-                <img
+                <Image
                   src={request.profiles.avatar_url}
                   alt={request.profiles.full_name || 'User'}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 rounded-full"
                 />
               ) : (
@@ -241,7 +244,7 @@ export default function AdminRequestDetailPage() {
                 <h3 className="font-medium">Message from User</h3>
               </div>
               <p className="text-sm text-foreground pl-6">
-                "{request.message}"
+                &ldquo;{request.message}&rdquo;
               </p>
             </div>
           )}

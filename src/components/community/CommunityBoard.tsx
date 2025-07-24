@@ -84,7 +84,7 @@ export default function CommunityBoard() {
       console.error('Error fetching entries:', error);
       // If it's a database column error, try without organization filtering
       if (error && typeof error === 'object' && 'code' in error) {
-        if ((error as any).code === '42703') { // Column does not exist
+        if ((error as { code: string }).code === '42703') { // Column does not exist
           console.warn('Organization column not found, retrying without organization filter...');
           try {
             // Retry without organization filtering

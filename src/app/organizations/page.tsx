@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Users, Building2, MapPin, Calendar, Plus } from 'lucide-react';
+import { Search, Building2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useOrganizations } from '@/lib/hooks/useOrganizations';
@@ -13,12 +13,28 @@ import OrganizationCard from '@/components/organizations/OrganizationCard';
 import JoinRequestModal from '@/components/organizations/JoinRequestModal';
 import Link from 'next/link';
 
+interface JoinRequestStatus {
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
+
+interface OrganizationWithStats extends Organization {
+  organization_member_stats?: {
+    organization_id: string;
+    total_entries: number;
+    published_entries: number;
+  };
+  member_count: number;
+  total_entries: number;
+  published_entries: number;
+}
+
 export default function OrganizationsPage() {
   const { user } = useAuth();
   const { userMemberships } = useOrganizations();
   const { submitJoinRequest } = useJoinRequests();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [userJoinRequests, setUserJoinRequests] = useState<Record<string, any>>({});
+  const [userJoinRequests, setUserJoinRequests] = useState<Record<string, JoinRequestStatus>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
@@ -29,7 +45,7 @@ export default function OrganizationsPage() {
       fetchOrganizations();
       fetchUserJoinRequests();
     }
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrganizations = async () => {
     try {
@@ -52,7 +68,7 @@ export default function OrganizationsPage() {
 
       // Group by organization and calculate stats
       const orgMap = new Map();
-      data?.forEach((row: any) => {
+      data?.forEach((row: OrganizationWithStats) => {
         if (!orgMap.has(row.id)) {
           orgMap.set(row.id, {
             ...row,
@@ -89,7 +105,7 @@ export default function OrganizationsPage() {
 
       if (error) throw error;
 
-      const requestsMap: Record<string, any> = {};
+      const requestsMap: Record<string, JoinRequestStatus> = {};
       data?.forEach(request => {
         requestsMap[request.organization_id] = request;
       });

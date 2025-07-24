@@ -11,7 +11,7 @@ import Link from 'next/link';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { currentOrganization, getCurrentMembership, hasPermission } = useOrganizations();
+  const { currentOrganization, getCurrentMembership } = useOrganizations();
   const [stats, setStats] = useState({
     totalEntries: 0,
     publishedEntries: 0,
@@ -64,7 +64,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       // Handle RLS recursion errors gracefully
-      if (error && typeof error === 'object' && 'code' in error && (error as any).code === '42P17') {
+      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '42P17') {
         console.error('RLS policy recursion detected in dashboard. Organization features may not work properly.');
       }
     } finally {

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry, Profile } from '@/lib/supabase/database.types';
 import { getInitials, formatDate } from '@/lib/utils';
 import { getRoleDisplayName, getRoleColor, formatMembershipDate } from '@/lib/organizations/utils';
-import { Calendar, Edit2, Mail, Building2, Shield, Users, Clock } from 'lucide-react';
+import { Calendar, Edit2, Mail, Building2, Clock } from 'lucide-react';
 import EntryCard from '@/components/community/EntryCard';
 
 export default function UserProfile() {
@@ -321,7 +321,7 @@ export default function UserProfile() {
           {organizations.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>You're not part of any organization yet.</p>
+              <p>You&apos;re not part of any organization yet.</p>
               <p className="text-sm">Create or join an organization to collaborate with your team.</p>
             </div>
           )}

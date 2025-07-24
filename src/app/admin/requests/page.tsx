@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Users, Clock, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useOrganizations } from '@/lib/hooks/useOrganizations';
@@ -130,7 +130,7 @@ export default function AdminRequestsPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
           <p className="text-muted-foreground mb-6">
-            You don't have permission to view this page. Only organization admins can manage join requests.
+            You don&apos;t have permission to view this page. Only organization admins can manage join requests.
           </p>
           <Link href="/dashboard" className="btn-primary">
             Return to Dashboard
@@ -236,7 +236,7 @@ export default function AdminRequestsPage() {
             {requests.map((request) => (
               <JoinRequestNotification
                 key={request.id}
-                request={request as any} // Type assertion to handle the join
+                request={request as any} // eslint-disable-line @typescript-eslint/no-explicit-any
               />
             ))}
           </>
