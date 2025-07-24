@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry, Profile } from '@/lib/supabase/database.types';
 import { getInitials, formatDate } from '@/lib/utils';
-import { Calendar, Edit2, Mail } from 'lucide-react';
+import { getRoleDisplayName, getRoleColor, formatMembershipDate } from '@/lib/organizations/utils';
+import { Calendar, Edit2, Mail, Building2, Shield, Users, Clock } from 'lucide-react';
 import EntryCard from '@/components/community/EntryCard';
 
 export default function UserProfile() {
   const { user } = useAuth();
+  const { organizations, userMemberships, currentOrganization } = useOrganizations();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [entries, setEntries] = useState<WeeklyEntry[]>([]);
   const [stats, setStats] = useState({
@@ -256,6 +259,74 @@ export default function UserProfile() {
           )}
         </div>
       </div>
+
+      {/* Organization Information */}
+      {organizations.length > 0 && (
+        <div className="bg-card border border-border rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Organization Memberships</h2>
+          </div>
+          
+          <div className="space-y-4">
+            {userMemberships.map((membership) => {
+              const org = organizations.find(o => o.id === membership.organization_id);
+              if (!org) return null;
+              
+              return (
+                <div
+                  key={membership.id}
+                  className={`flex items-center justify-between p-4 rounded-lg border ${
+                    currentOrganization?.id === org.id 
+                      ? 'border-primary/20 bg-primary/5' 
+                      : 'border-border bg-muted/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                      style={{ backgroundColor: org.primary_color }}
+                    >
+                      {org.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{org.name}</span>
+                        {currentOrganization?.id === org.id && (
+                          <span className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded-full">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        <span>Joined {formatMembershipDate(membership.joined_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(membership.role)}`}>
+                      {getRoleDisplayName(membership.role)}
+                    </span>
+                    <div className="text-xs text-muted-foreground mt-1 capitalize">
+                      {membership.status}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {organizations.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>You're not part of any organization yet.</p>
+              <p className="text-sm">Create or join an organization to collaborate with your team.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="user-profile__stats">

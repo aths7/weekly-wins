@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBreakpoint } from '@/lib/hooks/useBreakpoint';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { getNextFriday } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Save, Send, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Save, Send, Loader2, Clock, CheckCircle } from 'lucide-react';
 
 interface WeeklyEntryFormData {
   wins: string[];
@@ -34,9 +35,11 @@ export default function WeeklyEntryForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [autoSaving, setAutoSaving] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
   
   const { isMobile } = useBreakpoint();
   const { user } = useAuth();
+  const { currentOrganization } = useOrganizations();
   const router = useRouter();
 
   // Load existing draft when component mounts
@@ -79,12 +82,25 @@ export default function WeeklyEntryForm() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Build query with organization context
+      let query = supabase
         .from('weekly_entries')
         .select('*')
         .eq('user_id', user.id)
-        .eq('week_ending_date', formData.weekEndingDate)
-        .single();
+        .eq('week_ending_date', formData.weekEndingDate);
+
+      // Add organization filter if user is in an organization (with error handling)
+      try {
+        if (currentOrganization) {
+          query = query.eq('organization_id', currentOrganization.id);
+        } else {
+          query = query.is('organization_id', null);
+        }
+      } catch (orgError) {
+        console.warn('Organization filtering not available in loadExistingEntry:', orgError);
+      }
+
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') {
         // PGRST116 is "not found" error, which is expected for new entries
@@ -121,18 +137,31 @@ export default function WeeklyEntryForm() {
 
     setAutoSaving(true);
     try {
+      const entryData: any = {
+        user_id: user.id,
+        week_ending_date: formData.weekEndingDate,
+        wins: formData.wins,
+        work_summary: formData.workSummary,
+        results_contributed: formData.resultsContributed,
+        learnings: formData.learnings,
+        challenges: formData.challenges,
+        is_published: false,
+      };
+
+      // Try to add organization_id if available
+      try {
+        if (currentOrganization) {
+          entryData.organization_id = currentOrganization.id;
+        } else {
+          entryData.organization_id = null;
+        }
+      } catch (orgError) {
+        console.warn('Organization ID not supported in auto-save:', orgError);
+      }
+
       const { error } = await supabase
         .from('weekly_entries')
-        .upsert({
-          user_id: user.id,
-          week_ending_date: formData.weekEndingDate,
-          wins: formData.wins,
-          work_summary: formData.workSummary,
-          results_contributed: formData.resultsContributed,
-          learnings: formData.learnings,
-          challenges: formData.challenges,
-          is_published: false,
-        }, {
+        .upsert(entryData, {
           onConflict: 'user_id,week_ending_date'
         });
 
@@ -159,18 +188,31 @@ export default function WeeklyEntryForm() {
     setSuccess('');
 
     try {
+      const entryData: any = {
+        user_id: user.id,
+        week_ending_date: formData.weekEndingDate,
+        wins: formData.wins,
+        work_summary: formData.workSummary,
+        results_contributed: formData.resultsContributed,
+        learnings: formData.learnings,
+        challenges: formData.challenges,
+        is_published: publish,
+      };
+
+      // Try to add organization_id if available
+      try {
+        if (currentOrganization) {
+          entryData.organization_id = currentOrganization.id;
+        } else {
+          entryData.organization_id = null;
+        }
+      } catch (orgError) {
+        console.warn('Organization ID not supported in submit:', orgError);
+      }
+
       const { error } = await supabase
         .from('weekly_entries')
-        .upsert({
-          user_id: user.id,
-          week_ending_date: formData.weekEndingDate,
-          wins: formData.wins,
-          work_summary: formData.workSummary,
-          results_contributed: formData.resultsContributed,
-          learnings: formData.learnings,
-          challenges: formData.challenges,
-          is_published: publish,
-        }, {
+        .upsert(entryData, {
           onConflict: 'user_id,week_ending_date'
         });
 

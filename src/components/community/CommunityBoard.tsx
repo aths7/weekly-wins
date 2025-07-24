@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useBreakpoint } from '@/lib/hooks/useBreakpoint';
+import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry } from '@/lib/supabase/database.types';
-import { Search, Filter, Grid, List } from 'lucide-react';
+import { Search, Filter, Grid, List, Building2 } from 'lucide-react';
 import EntryCard from './EntryCard';
 
 export default function CommunityBoard() {
@@ -18,6 +19,7 @@ export default function CommunityBoard() {
   const [hasMore, setHasMore] = useState(true);
   
   const { isMobile } = useBreakpoint();
+  const { currentOrganization } = useOrganizations();
 
   // Auto-adjust view mode based on screen size
   useEffect(() => {
@@ -45,6 +47,18 @@ export default function CommunityBoard() {
         .order('created_at', { ascending: false })
         .range((pageNum - 1) * 10, pageNum * 10 - 1);
 
+      // Try to filter by organization, but handle cases where column might not exist
+      try {
+        if (currentOrganization) {
+          query = query.eq('organization_id', currentOrganization.id);
+        } else {
+          query = query.is('organization_id', null);
+        }
+      } catch (orgFilterError) {
+        // If organization filtering fails, continue without it
+        console.warn('Organization filtering not available:', orgFilterError);
+      }
+
       // Apply date filter
       if (dateFilter === 'this_week') {
         const today = new Date();
@@ -68,6 +82,59 @@ export default function CommunityBoard() {
       setHasMore((data || []).length === 10);
     } catch (error) {
       console.error('Error fetching entries:', error);
+      // If it's a database column error, try without organization filtering
+      if (error && typeof error === 'object' && 'code' in error) {
+        if ((error as any).code === '42703') { // Column does not exist
+          console.warn('Organization column not found, retrying without organization filter...');
+          try {
+            // Retry without organization filtering
+            let retryQuery = supabase
+              .from('weekly_entries')
+              .select(`
+                *,
+                profiles (
+                  id,
+                  full_name,
+                  avatar_url,
+                  email
+                )
+              `)
+              .eq('is_published', true)
+              .order('created_at', { ascending: false })
+              .range((pageNum - 1) * 10, pageNum * 10 - 1);
+
+            // Apply date filter for retry
+            if (dateFilter === 'this_week') {
+              const today = new Date();
+              const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+              retryQuery = retryQuery.gte('week_ending_date', startOfWeek.toISOString().split('T')[0]);
+            } else if (dateFilter === 'this_month') {
+              const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+              retryQuery = retryQuery.gte('week_ending_date', startOfMonth.toISOString().split('T')[0]);
+            }
+
+            const { data: retryData, error: retryError } = await retryQuery;
+            
+            if (retryError) throw retryError;
+            
+            const entriesWithProfiles = (retryData || []).map(entry => ({
+              ...entry,
+              profiles: entry.profiles
+            }));
+
+            if (reset || pageNum === 1) {
+              setEntries(entriesWithProfiles);
+            } else {
+              setEntries(prev => [...prev, ...entriesWithProfiles]);
+            }
+            
+            setHasMore((retryData || []).length === 10);
+            return; // Success with retry
+          } catch (retryError) {
+            console.error('Retry also failed:', retryError);
+          }
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -76,7 +143,7 @@ export default function CommunityBoard() {
   useEffect(() => {
     fetchEntries(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter]);
+  }, [dateFilter, currentOrganization]);
 
   const loadMore = () => {
     const nextPage = page + 1;
@@ -131,9 +198,19 @@ export default function CommunityBoard() {
       <div className="sticky top-14 sm:top-16 lg:top-18 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container-safe py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-              Community Board
-            </h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                Community Board
+              </h1>
+              {currentOrganization && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Building2 className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {currentOrganization.name}
+                  </span>
+                </div>
+              )}
+            </div>
             
             {/* Desktop view toggle */}
             {!isMobile && (

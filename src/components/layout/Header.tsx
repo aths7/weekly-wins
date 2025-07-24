@@ -1,7 +1,8 @@
 'use client';
 
-import { Menu, Search, Bell, User } from 'lucide-react';
+import { Menu, Search, User } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -56,9 +57,7 @@ export default function Header({
           <ThemeToggle />
           
           {/* Notifications */}
-          <button className="p-2 text-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors">
-            <Bell className="w-5 h-5" />
-          </button>
+          <NotificationCenter />
           
           {/* User Menu */}
           <button className="p-2 text-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors">

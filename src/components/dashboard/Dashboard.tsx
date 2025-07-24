@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry } from '@/lib/supabase/database.types';
 import { getNextFriday, formatDate } from '@/lib/utils';
-import { PlusCircle, Edit3, Calendar, Award, TrendingUp } from 'lucide-react';
+import { PlusCircle, Edit3, Calendar, Award, TrendingUp, Building2, Users, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { currentOrganization, getCurrentMembership, hasPermission } = useOrganizations();
   const [stats, setStats] = useState({
     totalEntries: 0,
     publishedEntries: 0,
@@ -19,6 +21,8 @@ export default function Dashboard() {
   const [currentWeekEntry, setCurrentWeekEntry] = useState<WeeklyEntry | null>(null);
   const [recentEntries, setRecentEntries] = useState<WeeklyEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const userMembership = getCurrentMembership();
 
   useEffect(() => {
     if (user) {
@@ -59,6 +63,10 @@ export default function Dashboard() {
       setRecentEntries(allEntries.slice(0, 5));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Handle RLS recursion errors gracefully
+      if (error && typeof error === 'object' && 'code' in error && (error as any).code === '42P17') {
+        console.error('RLS policy recursion detected in dashboard. Organization features may not work properly.');
+      }
     } finally {
       setLoading(false);
     }
@@ -102,8 +110,31 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+          {currentOrganization && (
+            <div className="flex items-center gap-2 mt-1">
+              <Building2 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {currentOrganization.name}
+              </span>
+              {userMembership && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <div className="flex items-center gap-1">
+                    {userMembership.role === 'super_admin' && <Shield className="w-3 h-3 text-red-500" />}
+                    {userMembership.role === 'org_admin' && <Shield className="w-3 h-3 text-blue-500" />}
+                    {userMembership.role === 'member' && <Users className="w-3 h-3 text-green-500" />}
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {userMembership.role.replace('_', ' ')}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         <div className="text-sm text-muted-foreground">
           Welcome back!
         </div>
