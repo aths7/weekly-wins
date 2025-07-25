@@ -1,11 +1,51 @@
 'use client';
 
+import { useState } from 'react';
 import { WeeklyEntry } from '@/lib/supabase/database.types';
 import { formatDate, getInitials } from '@/lib/utils';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface EntryCardProps {
   entry: WeeklyEntry;
   viewMode?: 'grid' | 'list';
+}
+
+interface ExpandableTextProps {
+  text: string;
+  maxLength?: number;
+  className?: string;
+}
+
+function ExpandableText({ text, maxLength = 150, className = '' }: ExpandableTextProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const shouldTruncate = text.length > maxLength;
+  const displayText = shouldTruncate && !isExpanded 
+    ? text.substring(0, maxLength) + '...' 
+    : text;
+
+  if (!shouldTruncate) {
+    return <p className={className}>{text}</p>;
+  }
+
+  return (
+    <div>
+      <p className={className}>{displayText}</p>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="text-primary hover:text-primary/80 text-xs font-medium mt-1 flex items-center gap-1 transition-colors"
+      >
+        {isExpanded ? (
+          <>
+            Show less <ChevronUp className="w-3 h-3" />
+          </>
+        ) : (
+          <>
+            Show more <ChevronDown className="w-3 h-3" />
+          </>
+        )}
+      </button>
+    </div>
+  );
 }
 
 export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) {
@@ -51,11 +91,12 @@ export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) 
             <h3 className="entry-card__section-title">
               📝 <span>Focus Areas</span>
             </h3>
-            <p className="entry-card__section-content text-sm">
-              {entry.work_summary.length > 150 
-                ? entry.work_summary.substring(0, 150) + '...' 
-                : entry.work_summary}
-            </p>
+            <div className="entry-card__section-content">
+              <ExpandableText 
+                text={entry.work_summary} 
+                className="text-sm"
+              />
+            </div>
           </div>
         )}
         
@@ -64,11 +105,12 @@ export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) 
             <h3 className="entry-card__section-title">
               🥅 <span>Results</span>
             </h3>
-            <p className="entry-card__section-content text-sm">
-              {entry.results_contributed.length > 150 
-                ? entry.results_contributed.substring(0, 150) + '...' 
-                : entry.results_contributed}
-            </p>
+            <div className="entry-card__section-content">
+              <ExpandableText 
+                text={entry.results_contributed} 
+                className="text-sm"
+              />
+            </div>
           </div>
         )}
         
@@ -77,11 +119,12 @@ export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) 
             <h3 className="entry-card__section-title">
               🎓 <span>Learnings</span>
             </h3>
-            <p className="entry-card__section-content text-sm">
-              {entry.learnings.length > 150 
-                ? entry.learnings.substring(0, 150) + '...' 
-                : entry.learnings}
-            </p>
+            <div className="entry-card__section-content">
+              <ExpandableText 
+                text={entry.learnings} 
+                className="text-sm"
+              />
+            </div>
           </div>
         )}
         
@@ -90,11 +133,12 @@ export default function EntryCard({ entry, viewMode = 'grid' }: EntryCardProps) 
             <h3 className="entry-card__section-title">
               ⚔ <span>Challenges</span>
             </h3>
-            <p className="entry-card__section-content text-sm">
-              {entry.challenges.length > 150 
-                ? entry.challenges.substring(0, 150) + '...' 
-                : entry.challenges}
-            </p>
+            <div className="entry-card__section-content">
+              <ExpandableText 
+                text={entry.challenges} 
+                className="text-sm"
+              />
+            </div>
           </div>
         )}
       </div>
