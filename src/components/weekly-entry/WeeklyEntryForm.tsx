@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useOrganizations } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { getNextFriday } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Save, Send, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Save, Send, Loader2, Delete } from 'lucide-react';
 
 interface WeeklyEntryFormData {
   wins: string[];
@@ -17,6 +17,7 @@ interface WeeklyEntryFormData {
   challenges: string;
   weekEndingDate: string;
   isPublished: boolean;
+  id?: string;
 }
 
 interface WeeklyEntryData {
@@ -129,6 +130,7 @@ export default function WeeklyEntryForm() {
           challenges: data.challenges || '',
           weekEndingDate: data.week_ending_date,
           isPublished: data.is_published,
+          id: data.id
         });
       } else {
         setFormData({
@@ -251,6 +253,31 @@ export default function WeeklyEntryForm() {
     }
   };
 
+
+  const handleDelete = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('weekly_entries')
+        .delete()
+        .eq('id', formData.id);
+
+      if (error) throw error;
+
+      setSuccess("Entry deleted successfully!");
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while saving');
+    } finally {
+      setLoading(false);
+    }
+
+
+
+  };
   const sections = [
     {
       id: 'wins',
@@ -452,6 +479,16 @@ export default function WeeklyEntryForm() {
               <Save className="w-4 h-4 mr-2" />
               Save Draft
             </button>
+
+            <button
+              onClick={() => handleDelete()}
+              disabled={loading}
+              className="btn-secondary flex-1 sm:flex-none"
+            >
+              <Delete className="w-4 h-4 mr-2" />
+              Delete Draft
+            </button>
+
 
             <button
               onClick={() => handleSubmit(true)}
