@@ -41,14 +41,14 @@ export default function WeeklyEntryForm() {
     weekEndingDate: getNextFriday(),
     isPublished: false,
   });
-  
+
   const [expandedSections, setExpandedSections] = useState<string[]>(['wins']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [autoSaving, setAutoSaving] = useState(false);
   // const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
-  
+
   const { isMobile } = useBreakpoint();
   const { user } = useAuth();
   const { currentOrganization } = useOrganizations();
@@ -72,8 +72,8 @@ export default function WeeklyEntryForm() {
 
   const toggleSection = (section: string) => {
     if (isMobile) {
-      setExpandedSections(prev => 
-        prev.includes(section) 
+      setExpandedSections(prev =>
+        prev.includes(section)
           ? prev.filter(s => s !== section)
           : [...prev, section]
       );
@@ -130,6 +130,16 @@ export default function WeeklyEntryForm() {
           weekEndingDate: data.week_ending_date,
           isPublished: data.is_published,
         });
+      } else {
+        setFormData({
+          wins: ['', '', ''],
+          workSummary: '',
+          resultsContributed: '',
+          learnings: '',
+          challenges: '',
+          weekEndingDate: '',
+          isPublished: false,
+        });
       }
     } catch (error) {
       console.error('Error loading existing entry:', error);
@@ -138,13 +148,13 @@ export default function WeeklyEntryForm() {
 
   const autoSave = async () => {
     if (!user || autoSaving) return;
-    
-    const hasContent = formData.wins.some(win => win.trim()) || 
-                      formData.workSummary.trim() || 
-                      formData.resultsContributed.trim() || 
-                      formData.learnings.trim() || 
-                      formData.challenges.trim();
-    
+
+    const hasContent = formData.wins.some(win => win.trim()) ||
+      formData.workSummary.trim() ||
+      formData.resultsContributed.trim() ||
+      formData.learnings.trim() ||
+      formData.challenges.trim();
+
     if (!hasContent) return;
 
     setAutoSaving(true);
@@ -194,7 +204,7 @@ export default function WeeklyEntryForm() {
 
   const handleSubmit = async (publish: boolean) => {
     if (!user) return;
-    
+
     setLoading(true);
     setError('');
     setSuccess('');
@@ -355,7 +365,7 @@ export default function WeeklyEntryForm() {
           {error}
         </div>
       )}
-      
+
       {success && (
         <div className="bg-success/10 text-success border border-success/20 rounded-md p-3">
           {success}
@@ -364,22 +374,22 @@ export default function WeeklyEntryForm() {
 
       {/* Draft Indicator */}
       {formData.isPublished === false && (
-        formData.wins.some(win => win.trim()) || 
-        formData.workSummary.trim() || 
-        formData.resultsContributed.trim() || 
-        formData.learnings.trim() || 
+        formData.wins.some(win => win.trim()) ||
+        formData.workSummary.trim() ||
+        formData.resultsContributed.trim() ||
+        formData.learnings.trim() ||
         formData.challenges.trim()
       ) && (
-        <div className="bg-info/10 text-info border border-info/20 rounded-md p-3">
-          📝 Draft loaded - you can continue editing your entry for the week ending {formData.weekEndingDate}
-        </div>
-      )}
+          <div className="bg-info/10 text-info border border-info/20 rounded-md p-3">
+            📝 Draft loaded - you can continue editing your entry for the week ending {formData.weekEndingDate}
+          </div>
+        )}
 
       {/* Form Sections */}
       <div className="weekly-form">
         {sections.map((section) => {
           const isExpanded = !isMobile || expandedSections.includes(section.id);
-          
+
           return (
             <div key={section.id} className="weekly-form__section">
               <button
@@ -410,7 +420,7 @@ export default function WeeklyEntryForm() {
                   )}
                 </div>
               </button>
-              
+
               {isExpanded && (
                 <div className="mt-4">
                   {section.component}
@@ -432,7 +442,7 @@ export default function WeeklyEntryForm() {
               </div>
             )}
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <button
               onClick={() => handleSubmit(false)}
@@ -442,7 +452,7 @@ export default function WeeklyEntryForm() {
               <Save className="w-4 h-4 mr-2" />
               Save Draft
             </button>
-            
+
             <button
               onClick={() => handleSubmit(true)}
               disabled={loading}
