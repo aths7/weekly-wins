@@ -139,7 +139,7 @@ export default function WeeklyEntryForm() {
           resultsContributed: '',
           learnings: '',
           challenges: '',
-          weekEndingDate: '',
+          weekEndingDate: formData.weekEndingDate,
           isPublished: false,
         });
       }
