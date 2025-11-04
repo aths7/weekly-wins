@@ -50,6 +50,7 @@ export default function WeeklyEntryForm() {
   const [success, setSuccess] = useState('');
   const [autoSaving, setAutoSaving] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(getNextFriday());
+  const [hasLoadedFromDB, setHasLoadedFromDB] = useState(false);
 
   const { isMobile } = useBreakpoint();
   const { user } = useAuth();
@@ -64,24 +65,36 @@ export default function WeeklyEntryForm() {
         const parsed = JSON.parse(savedData);
         setFormData(parsed);
         setSelectedWeek(parsed.weekEndingDate);
+        setInitialLoading(false);
       } catch (e) {
         console.error('Error loading from localStorage:', e);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Save to localStorage whenever formData changes
+  // Load existing entry from database ONLY on first load when user becomes available
   useEffect(() => {
-    localStorage.setItem('weeklyEntryDraft', JSON.stringify(formData));
-  }, [formData]);
-
-  // Load existing entry from database when user or selectedWeek changes
-  useEffect(() => {
-    if (user && selectedWeek) {
+    if (user && selectedWeek && !hasLoadedFromDB) {
       loadExistingEntry();
+      setHasLoadedFromDB(true);
+    } else if (!user) {
+      // If no user yet, stop showing loading state
+      setInitialLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, selectedWeek, currentOrganization?.id]);
+  }, [user, selectedWeek, hasLoadedFromDB]);
+
+  // When selectedWeek changes (user manually changes date), reload from DB
+  useEffect(() => {
+    if (user && selectedWeek && hasLoadedFromDB) {
+      // Check if we're changing to a different week
+      if (formData.weekEndingDate !== selectedWeek) {
+        loadExistingEntry();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeek]);
 
   const toggleSection = (section: string) => {
     if (isMobile) {
@@ -96,11 +109,21 @@ export default function WeeklyEntryForm() {
   const updateWin = (index: number, value: string) => {
     const newWins = [...formData.wins];
     newWins[index] = value;
-    setFormData(prev => ({ ...prev, wins: newWins }));
+    setFormData(prev => {
+      const updated = { ...prev, wins: newWins };
+      // Immediately save to localStorage
+      localStorage.setItem('weeklyEntryDraft', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateField = (field: keyof WeeklyEntryFormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Immediately save to localStorage
+      localStorage.setItem('weeklyEntryDraft', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const loadExistingEntry = async () => {
@@ -108,6 +131,30 @@ export default function WeeklyEntryForm() {
 
     setInitialLoading(true);
     try {
+      // Check localStorage first - if we have unsaved changes for this week, keep them
+      const savedData = localStorage.getItem('weeklyEntryDraft');
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          // If localStorage has data for the same week, prioritize it
+          if (parsed.weekEndingDate === selectedWeek) {
+            const hasChanges = parsed.wins.some((w: string) => w.trim()) ||
+              parsed.workSummary?.trim() ||
+              parsed.resultsContributed?.trim() ||
+              parsed.learnings?.trim() ||
+              parsed.challenges?.trim();
+
+            if (hasChanges) {
+              setFormData(parsed);
+              setInitialLoading(false);
+              return; // Don't overwrite with DB data
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing localStorage:', e);
+        }
+      }
+
       // Build query with organization context
       let query = supabase
         .from('weekly_entries')
@@ -148,21 +195,18 @@ export default function WeeklyEntryForm() {
         setFormData(loadedData);
         localStorage.setItem('weeklyEntryDraft', JSON.stringify(loadedData));
       } else {
-        // Only reset if no localStorage data exists
-        const savedData = localStorage.getItem('weeklyEntryDraft');
-        if (!savedData || JSON.parse(savedData).weekEndingDate !== selectedWeek) {
-          const emptyData = {
-            wins: ['', '', ''],
-            workSummary: '',
-            resultsContributed: '',
-            learnings: '',
-            challenges: '',
-            weekEndingDate: selectedWeek,
-            isPublished: false,
-          };
-          setFormData(emptyData);
-          localStorage.setItem('weeklyEntryDraft', JSON.stringify(emptyData));
-        }
+        // No data in database - create empty form
+        const emptyData = {
+          wins: ['', '', ''],
+          workSummary: '',
+          resultsContributed: '',
+          learnings: '',
+          challenges: '',
+          weekEndingDate: selectedWeek,
+          isPublished: false,
+        };
+        setFormData(emptyData);
+        localStorage.setItem('weeklyEntryDraft', JSON.stringify(emptyData));
       }
     } catch (error) {
       console.error('Error loading existing entry:', error);
@@ -462,104 +506,103 @@ export default function WeeklyEntryForm() {
       {/* Form Sections */}
       {!initialLoading && (
         <div className="weekly-form">
-        {sections.map((section) => {
-          const isExpanded = !isMobile || expandedSections.includes(section.id);
+          {sections.map((section) => {
+            const isExpanded = !isMobile || expandedSections.includes(section.id);
 
-          return (
-            <div key={section.id} className="weekly-form__section">
-              <button
-                onClick={() => toggleSection(section.id)}
-                className={`w-full ${isMobile ? 'cursor-pointer' : 'cursor-default'}`}
-                disabled={!isMobile}
-              >
-                <div className="weekly-form__header">
-                  <span className="text-xl sm:text-2xl">{section.icon}</span>
-                  <div className="flex-1 text-left">
-                    <h2 className="text-responsive-lg font-semibold">
-                      {section.title}
-                    </h2>
-                    {section.subtitle && (
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        {section.subtitle}
-                      </p>
-                    )}
-                  </div>
-                  {isMobile && (
-                    <div className="flex-shrink-0">
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            return (
+              <div key={section.id} className="weekly-form__section">
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className={`w-full ${isMobile ? 'cursor-pointer' : 'cursor-default'}`}
+                  disabled={!isMobile}
+                >
+                  <div className="weekly-form__header">
+                    <span className="text-xl sm:text-2xl">{section.icon}</span>
+                    <div className="flex-1 text-left">
+                      <h2 className="text-responsive-lg font-semibold">
+                        {section.title}
+                      </h2>
+                      {section.subtitle && (
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          {section.subtitle}
+                        </p>
                       )}
                     </div>
-                  )}
-                </div>
-              </button>
+                    {isMobile && (
+                      <div className="flex-shrink-0">
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </button>
 
-              {isExpanded && (
-                <div className="mt-4">
-                  {section.component}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {isExpanded && (
+                  <div className="mt-4">
+                    {section.component}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Action Buttons */}
       {!initialLoading && (
-      <div className="sticky bottom-0 bg-background border-t border-border p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-4xl mx-auto">
-          <div className="flex-1 text-center sm:text-left">
-            {autoSaving && (
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Auto-saving...
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <button
-              onClick={() => handleSubmit(false)}
-              disabled={loading}
-              className="btn-secondary flex-1 sm:flex-none"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Draft
-            </button>
-
-            <button
-              onClick={() => handleDelete()}
-              disabled={loading}
-              className="btn-secondary flex-1 sm:flex-none"
-            >
-              <Delete className="w-4 h-4 mr-2" />
-              Delete Draft
-            </button>
-
-
-            <button
-              onClick={() => handleSubmit(true)}
-              disabled={loading}
-              className="btn-primary flex-1"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Publish Entry
-                </>
+        <div className="sticky bottom-0 bg-background border-t border-border p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-4xl mx-auto">
+            <div className="flex-1 text-center sm:text-left">
+              {autoSaving && (
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Auto-saving...
+                </div>
               )}
-            </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button
+                onClick={() => handleSubmit(false)}
+                disabled={loading}
+                className="btn-secondary flex-1 sm:flex-none"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Draft
+              </button>
+
+              <button
+                onClick={() => handleDelete()}
+                disabled={loading}
+                className="btn-secondary flex-1 sm:flex-none"
+              >
+                <Delete className="w-4 h-4 mr-2" />
+                Delete Draft
+              </button>
+
+              <button
+                onClick={() => handleSubmit(true)}
+                disabled={loading}
+                className="btn-primary flex-1"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Publish Entry
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
       )}
     </div>
   );

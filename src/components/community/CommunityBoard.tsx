@@ -431,7 +431,7 @@ export default function CommunityBoard() {
             <div className="mt-3 flex flex-wrap gap-2">
               {searchTerm && (
                 <div className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
-                  <span>Search: "{searchTerm}"</span>
+                  <span>Search: &ldquo;{searchTerm}&rdquo;</span>
                   <button
                     onClick={() => removeFilter('search')}
                     className="hover:bg-primary/20 rounded-full p-0.5"
@@ -477,7 +477,7 @@ export default function CommunityBoard() {
                 Showing {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
                 {weekFilter !== 'all' && ` for ${weekOptions.find(w => w.value === weekFilter)?.label}`}
                 {memberFilter !== 'all' && ` by ${members.find(m => m.user_id === memberFilter)?.full_name || 'member'}`}
-                {searchTerm && ` matching "${searchTerm}"`}
+                {searchTerm && ` matching \u201C${searchTerm}\u201D`}
               </span>
             ) : (
               <span>Showing {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}</span>
