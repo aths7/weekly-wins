@@ -45,31 +45,56 @@ export default function WeeklyEntryForm() {
 
   const [expandedSections, setExpandedSections] = useState<string[]>(['wins']);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [autoSaving, setAutoSaving] = useState(false);
-  // const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState(getNextFriday());
+  const [hasLoadedFromDB, setHasLoadedFromDB] = useState(false);
 
   const { isMobile } = useBreakpoint();
   const { user } = useAuth();
   const { currentOrganization } = useOrganizations();
   const router = useRouter();
 
-  // Load existing draft when component mounts
+  // Load from localStorage on mount (immediate restore)
   useEffect(() => {
-    if (user) {
-      loadExistingEntry();
+    const savedData = localStorage.getItem('weeklyEntryDraft');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setFormData(parsed);
+        setSelectedWeek(parsed.weekEndingDate);
+        setInitialLoading(false);
+      } catch (e) {
+        console.error('Error loading from localStorage:', e);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
-  // Reload entry when week ending date changes
+  // Load existing entry from database ONLY on first load when user becomes available
   useEffect(() => {
-    if (user && formData.weekEndingDate) {
+    if (user && selectedWeek && !hasLoadedFromDB) {
       loadExistingEntry();
+      setHasLoadedFromDB(true);
+    } else if (!user) {
+      // If no user yet, stop showing loading state
+      setInitialLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.weekEndingDate, user]);
+  }, [user, selectedWeek, hasLoadedFromDB]);
+
+  // When selectedWeek changes (user manually changes date), reload from DB
+  useEffect(() => {
+    if (user && selectedWeek && hasLoadedFromDB) {
+      // Check if we're changing to a different week
+      if (formData.weekEndingDate !== selectedWeek) {
+        loadExistingEntry();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeek]);
 
   const toggleSection = (section: string) => {
     if (isMobile) {
@@ -84,23 +109,58 @@ export default function WeeklyEntryForm() {
   const updateWin = (index: number, value: string) => {
     const newWins = [...formData.wins];
     newWins[index] = value;
-    setFormData(prev => ({ ...prev, wins: newWins }));
+    setFormData(prev => {
+      const updated = { ...prev, wins: newWins };
+      // Immediately save to localStorage
+      localStorage.setItem('weeklyEntryDraft', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateField = (field: keyof WeeklyEntryFormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Immediately save to localStorage
+      localStorage.setItem('weeklyEntryDraft', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const loadExistingEntry = async () => {
     if (!user) return;
 
+    setInitialLoading(true);
     try {
+      // Check localStorage first - if we have unsaved changes for this week, keep them
+      const savedData = localStorage.getItem('weeklyEntryDraft');
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          // If localStorage has data for the same week, prioritize it
+          if (parsed.weekEndingDate === selectedWeek) {
+            const hasChanges = parsed.wins.some((w: string) => w.trim()) ||
+              parsed.workSummary?.trim() ||
+              parsed.resultsContributed?.trim() ||
+              parsed.learnings?.trim() ||
+              parsed.challenges?.trim();
+
+            if (hasChanges) {
+              setFormData(parsed);
+              setInitialLoading(false);
+              return; // Don't overwrite with DB data
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing localStorage:', e);
+        }
+      }
+
       // Build query with organization context
       let query = supabase
         .from('weekly_entries')
         .select('*')
         .eq('user_id', user.id)
-        .eq('week_ending_date', formData.weekEndingDate);
+        .eq('week_ending_date', selectedWeek);
 
       // Add organization filter if user is in an organization (with error handling)
       try {
@@ -121,8 +181,8 @@ export default function WeeklyEntryForm() {
       }
 
       if (data) {
-        // Load existing data
-        setFormData({
+        // Load existing data from database
+        const loadedData = {
           wins: Array.isArray(data.wins) ? data.wins : ['', '', ''],
           workSummary: data.work_summary || '',
           resultsContributed: data.results_contributed || '',
@@ -131,25 +191,32 @@ export default function WeeklyEntryForm() {
           weekEndingDate: data.week_ending_date,
           isPublished: data.is_published,
           id: data.id
-        });
+        };
+        setFormData(loadedData);
+        localStorage.setItem('weeklyEntryDraft', JSON.stringify(loadedData));
       } else {
-        setFormData({
+        // No data in database - create empty form
+        const emptyData = {
           wins: ['', '', ''],
           workSummary: '',
           resultsContributed: '',
           learnings: '',
           challenges: '',
-          weekEndingDate: formData.weekEndingDate,
+          weekEndingDate: selectedWeek,
           isPublished: false,
-        });
+        };
+        setFormData(emptyData);
+        localStorage.setItem('weeklyEntryDraft', JSON.stringify(emptyData));
       }
     } catch (error) {
       console.error('Error loading existing entry:', error);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
   const autoSave = async () => {
-    if (!user || autoSaving) return;
+    if (!user || autoSaving || initialLoading) return;
 
     const hasContent = formData.wins.some(win => win.trim()) ||
       formData.workSummary.trim() ||
@@ -161,7 +228,7 @@ export default function WeeklyEntryForm() {
 
     setAutoSaving(true);
     try {
-      const entryData: WeeklyEntryData = {
+      const entryData: Partial<WeeklyEntryData> & { id?: string } = {
         user_id: user.id,
         week_ending_date: formData.weekEndingDate,
         wins: formData.wins,
@@ -172,24 +239,29 @@ export default function WeeklyEntryForm() {
         is_published: false,
       };
 
-      // Try to add organization_id if available
-      try {
-        if (currentOrganization) {
-          entryData.organization_id = currentOrganization.id;
-        } else {
-          entryData.organization_id = undefined;
-        }
-      } catch (orgError) {
-        console.warn('Organization ID not supported in auto-save:', orgError);
+      // Add organization_id if available
+      if (currentOrganization) {
+        entryData.organization_id = currentOrganization.id;
       }
 
-      const { error } = await supabase
-        .from('weekly_entries')
-        .upsert(entryData, {
-          onConflict: 'user_id,week_ending_date'
-        });
-
-      if (error) throw error;
+      // Use update if we have an ID, otherwise insert
+      if (formData.id) {
+        const { error } = await supabase
+          .from('weekly_entries')
+          .update(entryData)
+          .eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('weekly_entries')
+          .insert([entryData])
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) {
+          setFormData(prev => ({ ...prev, id: data.id }));
+        }
+      }
     } catch (err) {
       console.error('Auto-save error:', err);
     } finally {
@@ -199,10 +271,12 @@ export default function WeeklyEntryForm() {
 
   // Auto-save every 30 seconds
   useEffect(() => {
-    const interval = setInterval(autoSave, 30000);
+    const interval = setInterval(() => {
+      autoSave();
+    }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData, user, autoSaving]);
+  }, [user, autoSaving, initialLoading]);
 
   const handleSubmit = async (publish: boolean) => {
     if (!user) return;
@@ -212,7 +286,7 @@ export default function WeeklyEntryForm() {
     setSuccess('');
 
     try {
-      const entryData: WeeklyEntryData = {
+      const entryData: Partial<WeeklyEntryData> & { id?: string } = {
         user_id: user.id,
         week_ending_date: formData.weekEndingDate,
         wins: formData.wins,
@@ -223,26 +297,30 @@ export default function WeeklyEntryForm() {
         is_published: publish,
       };
 
-      // Try to add organization_id if available
-      try {
-        if (currentOrganization) {
-          entryData.organization_id = currentOrganization.id;
-        } else {
-          entryData.organization_id = undefined;
-        }
-      } catch (orgError) {
-        console.warn('Organization ID not supported in submit:', orgError);
+      // Add organization_id if available
+      if (currentOrganization) {
+        entryData.organization_id = currentOrganization.id;
       }
 
-      const { error } = await supabase
-        .from('weekly_entries')
-        .upsert(entryData, {
-          onConflict: 'user_id,week_ending_date'
-        });
-
-      if (error) throw error;
+      // Use update if we have an ID, otherwise insert
+      if (formData.id) {
+        const { error } = await supabase
+          .from('weekly_entries')
+          .update(entryData)
+          .eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('weekly_entries')
+          .insert([entryData]);
+        if (error) throw error;
+      }
 
       setSuccess(publish ? 'Entry published successfully!' : 'Draft saved successfully!');
+
+      // Clear localStorage draft after successful save
+      localStorage.removeItem('weeklyEntryDraft');
+
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
@@ -379,12 +457,25 @@ export default function WeeklyEntryForm() {
           </label>
           <input
             type="date"
-            value={formData.weekEndingDate}
-            onChange={(e) => updateField('weekEndingDate', e.target.value)}
+            value={selectedWeek}
+            onChange={(e) => {
+              setSelectedWeek(e.target.value);
+              setFormData(prev => ({ ...prev, weekEndingDate: e.target.value }));
+            }}
             className="weekly-form__input max-w-xs"
           />
         </div>
       </div>
+
+      {/* Loading State */}
+      {initialLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Loading entry...</span>
+          </div>
+        </div>
+      )}
 
       {/* Status Messages */}
       {error && (
@@ -400,7 +491,7 @@ export default function WeeklyEntryForm() {
       )}
 
       {/* Draft Indicator */}
-      {formData.isPublished === false && (
+      {!initialLoading && formData.isPublished === false && (
         formData.wins.some(win => win.trim()) ||
         formData.workSummary.trim() ||
         formData.resultsContributed.trim() ||
@@ -413,103 +504,106 @@ export default function WeeklyEntryForm() {
         )}
 
       {/* Form Sections */}
-      <div className="weekly-form">
-        {sections.map((section) => {
-          const isExpanded = !isMobile || expandedSections.includes(section.id);
+      {!initialLoading && (
+        <div className="weekly-form">
+          {sections.map((section) => {
+            const isExpanded = !isMobile || expandedSections.includes(section.id);
 
-          return (
-            <div key={section.id} className="weekly-form__section">
-              <button
-                onClick={() => toggleSection(section.id)}
-                className={`w-full ${isMobile ? 'cursor-pointer' : 'cursor-default'}`}
-                disabled={!isMobile}
-              >
-                <div className="weekly-form__header">
-                  <span className="text-xl sm:text-2xl">{section.icon}</span>
-                  <div className="flex-1 text-left">
-                    <h2 className="text-responsive-lg font-semibold">
-                      {section.title}
-                    </h2>
-                    {section.subtitle && (
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        {section.subtitle}
-                      </p>
-                    )}
-                  </div>
-                  {isMobile && (
-                    <div className="flex-shrink-0">
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            return (
+              <div key={section.id} className="weekly-form__section">
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className={`w-full ${isMobile ? 'cursor-pointer' : 'cursor-default'}`}
+                  disabled={!isMobile}
+                >
+                  <div className="weekly-form__header">
+                    <span className="text-xl sm:text-2xl">{section.icon}</span>
+                    <div className="flex-1 text-left">
+                      <h2 className="text-responsive-lg font-semibold">
+                        {section.title}
+                      </h2>
+                      {section.subtitle && (
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          {section.subtitle}
+                        </p>
                       )}
                     </div>
-                  )}
-                </div>
-              </button>
+                    {isMobile && (
+                      <div className="flex-shrink-0">
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </button>
 
-              {isExpanded && (
-                <div className="mt-4">
-                  {section.component}
+                {isExpanded && (
+                  <div className="mt-4">
+                    {section.component}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      {!initialLoading && (
+        <div className="sticky bottom-0 bg-background border-t border-border p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-4xl mx-auto">
+            <div className="flex-1 text-center sm:text-left">
+              {autoSaving && (
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Auto-saving...
                 </div>
               )}
             </div>
-          );
-        })}
-      </div>
 
-      {/* Action Buttons */}
-      <div className="sticky bottom-0 bg-background border-t border-border p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-4xl mx-auto">
-          <div className="flex-1 text-center sm:text-left">
-            {autoSaving && (
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Auto-saving...
-              </div>
-            )}
-          </div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button
+                onClick={() => handleSubmit(false)}
+                disabled={loading}
+                className="btn-secondary flex-1 sm:flex-none"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Draft
+              </button>
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <button
-              onClick={() => handleSubmit(false)}
-              disabled={loading}
-              className="btn-secondary flex-1 sm:flex-none"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Draft
-            </button>
+              <button
+                onClick={() => handleDelete()}
+                disabled={loading}
+                className="btn-secondary flex-1 sm:flex-none"
+              >
+                <Delete className="w-4 h-4 mr-2" />
+                Delete Draft
+              </button>
 
-            <button
-              onClick={() => handleDelete()}
-              disabled={loading}
-              className="btn-secondary flex-1 sm:flex-none"
-            >
-              <Delete className="w-4 h-4 mr-2" />
-              Delete Draft
-            </button>
-
-
-            <button
-              onClick={() => handleSubmit(true)}
-              disabled={loading}
-              className="btn-primary flex-1"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Publish Entry
-                </>
-              )}
-            </button>
+              <button
+                onClick={() => handleSubmit(true)}
+                disabled={loading}
+                className="btn-primary flex-1"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Publish Entry
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,12 +1,52 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useBreakpoint } from '@/lib/hooks/useBreakpoint';
-import { useOrganizations } from '@/lib/hooks/useOrganizations';
+import { useOrganizations, useOrganizationMembers } from '@/lib/hooks/useOrganizations';
 import { supabase } from '@/lib/supabase/client';
 import { WeeklyEntry } from '@/lib/supabase/database.types';
-import { Search, Filter, Grid, List, Building2 } from 'lucide-react';
+import { Search, Filter, Grid, List, Building2, X } from 'lucide-react';
 import EntryCard from './EntryCard';
+
+// Helper function to get week options (Saturday to Friday)
+const getWeekOptions = () => {
+  const options = [];
+  const today = new Date();
+
+  // Calculate days since Saturday (0 = Sunday, 6 = Saturday)
+  const dayOfWeek = today.getDay();
+  const daysSinceSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+
+  // Get last 12 weeks
+  for (let i = 0; i < 12; i++) {
+    // Week ends on Friday
+    const weekEnd = new Date(today);
+    weekEnd.setDate(today.getDate() - daysSinceSaturday - 1 - (7 * i));
+
+    // Week starts on Saturday (6 days before Friday)
+    const weekStart = new Date(weekEnd);
+    weekStart.setDate(weekEnd.getDate() - 6);
+
+    const formatDate = (d: Date) => {
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    };
+
+    const label = i === 0
+      ? `This Week (${formatDate(weekStart)} - ${formatDate(weekEnd)})`
+      : i === 1
+      ? `Last Week (${formatDate(weekStart)} - ${formatDate(weekEnd)})`
+      : `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
+
+    options.push({
+      value: weekEnd.toISOString().split('T')[0],
+      label,
+      weekStart: weekStart.toISOString().split('T')[0],
+      weekEnd: weekEnd.toISOString().split('T')[0]
+    });
+  }
+
+  return options;
+};
 
 export default function CommunityBoard() {
   const [entries, setEntries] = useState<WeeklyEntry[]>([]);
@@ -14,12 +54,16 @@ export default function CommunityBoard() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('all');
+  const [weekFilter, setWeekFilter] = useState('all');
+  const [memberFilter, setMemberFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  
+
   const { isMobile } = useBreakpoint();
   const { currentOrganization } = useOrganizations();
+  const { members } = useOrganizationMembers(currentOrganization?.id || '');
+
+  const weekOptions = useMemo(() => getWeekOptions(), []);
 
   // Auto-adjust view mode based on screen size
   useEffect(() => {
@@ -30,7 +74,7 @@ export default function CommunityBoard() {
 
   const fetchEntries = async (pageNum: number = 1, reset: boolean = false) => {
     setLoading(true);
-    
+
     try {
       let query = supabase
         .from('weekly_entries')
@@ -47,7 +91,7 @@ export default function CommunityBoard() {
         .order('created_at', { ascending: false })
         .range((pageNum - 1) * 10, pageNum * 10 - 1);
 
-      // Try to filter by organization, but handle cases where column might not exist
+      // Try to filter by organization
       try {
         if (currentOrganization) {
           query = query.eq('organization_id', currentOrganization.id);
@@ -55,22 +99,22 @@ export default function CommunityBoard() {
           query = query.is('organization_id', null);
         }
       } catch (orgFilterError) {
-        // If organization filtering fails, continue without it
         console.warn('Organization filtering not available:', orgFilterError);
       }
 
-      // Apply date filter
-      if (dateFilter === 'this_week') {
-        const today = new Date();
-        const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
-        query = query.gte('week_ending_date', weekStart.toISOString().split('T')[0]);
-      } else if (dateFilter === 'last_week') {
-        const today = new Date();
-        const lastWeekEnd = new Date(today.setDate(today.getDate() - today.getDay() - 1));
-        const lastWeekStart = new Date(lastWeekEnd.setDate(lastWeekEnd.getDate() - 6));
-        query = query
-          .gte('week_ending_date', lastWeekStart.toISOString().split('T')[0])
-          .lte('week_ending_date', lastWeekEnd.toISOString().split('T')[0]);
+      // Apply week filter
+      if (weekFilter !== 'all') {
+        const selectedWeek = weekOptions.find(w => w.value === weekFilter);
+        if (selectedWeek) {
+          query = query
+            .gte('week_ending_date', selectedWeek.weekStart)
+            .lte('week_ending_date', selectedWeek.weekEnd);
+        }
+      }
+
+      // Apply member filter
+      if (memberFilter !== 'all') {
+        query = query.eq('user_id', memberFilter);
       }
 
       const { data, error } = await query;
@@ -84,10 +128,9 @@ export default function CommunityBoard() {
       console.error('Error fetching entries:', error);
       // If it's a database column error, try without organization filtering
       if (error && typeof error === 'object' && 'code' in error) {
-        if ((error as { code: string }).code === '42703') { // Column does not exist
+        if ((error as { code: string }).code === '42703') {
           console.warn('Organization column not found, retrying without organization filter...');
           try {
-            // Retry without organization filtering
             let retryQuery = supabase
               .from('weekly_entries')
               .select(`
@@ -103,20 +146,25 @@ export default function CommunityBoard() {
               .order('created_at', { ascending: false })
               .range((pageNum - 1) * 10, pageNum * 10 - 1);
 
-            // Apply date filter for retry
-            if (dateFilter === 'this_week') {
-              const today = new Date();
-              const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-              retryQuery = retryQuery.gte('week_ending_date', startOfWeek.toISOString().split('T')[0]);
-            } else if (dateFilter === 'this_month') {
-              const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-              retryQuery = retryQuery.gte('week_ending_date', startOfMonth.toISOString().split('T')[0]);
+            // Apply week filter for retry
+            if (weekFilter !== 'all') {
+              const selectedWeek = weekOptions.find(w => w.value === weekFilter);
+              if (selectedWeek) {
+                retryQuery = retryQuery
+                  .gte('week_ending_date', selectedWeek.weekStart)
+                  .lte('week_ending_date', selectedWeek.weekEnd);
+              }
+            }
+
+            // Apply member filter for retry
+            if (memberFilter !== 'all') {
+              retryQuery = retryQuery.eq('user_id', memberFilter);
             }
 
             const { data: retryData, error: retryError } = await retryQuery;
-            
+
             if (retryError) throw retryError;
-            
+
             const entriesWithProfiles = (retryData || []).map(entry => ({
               ...entry,
               profiles: entry.profiles
@@ -127,9 +175,9 @@ export default function CommunityBoard() {
             } else {
               setEntries(prev => [...prev, ...entriesWithProfiles]);
             }
-            
+
             setHasMore((retryData || []).length === 10);
-            return; // Success with retry
+            return;
           } catch (retryError) {
             console.error('Retry also failed:', retryError);
           }
@@ -140,16 +188,56 @@ export default function CommunityBoard() {
     }
   };
 
+  // Filter persistence
   useEffect(() => {
+    const savedFilters = sessionStorage.getItem('communityFilters');
+    if (savedFilters) {
+      try {
+        const { weekFilter: savedWeek, memberFilter: savedMember, searchTerm: savedSearch } = JSON.parse(savedFilters);
+        if (savedWeek) setWeekFilter(savedWeek);
+        if (savedMember) setMemberFilter(savedMember);
+        if (savedSearch) setSearchTerm(savedSearch);
+      } catch (e) {
+        console.error('Error loading saved filters:', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('communityFilters', JSON.stringify({ weekFilter, memberFilter, searchTerm }));
+  }, [weekFilter, memberFilter, searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
     fetchEntries(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter, currentOrganization]);
+  }, [weekFilter, memberFilter, currentOrganization]);
 
   const loadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchEntries(nextPage, false);
   };
+
+  const clearAllFilters = () => {
+    setWeekFilter('all');
+    setMemberFilter('all');
+    setSearchTerm('');
+  };
+
+  const removeFilter = (filterType: 'week' | 'member' | 'search') => {
+    if (filterType === 'week') setWeekFilter('all');
+    if (filterType === 'member') setMemberFilter('all');
+    if (filterType === 'search') setSearchTerm('');
+  };
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (weekFilter !== 'all') count++;
+    if (memberFilter !== 'all') count++;
+    if (searchTerm) count++;
+    return count;
+  }, [weekFilter, memberFilter, searchTerm]);
 
   const filteredEntries = entries.filter(entry => {
     if (!searchTerm) return true;
@@ -251,42 +339,129 @@ export default function CommunityBoard() {
                 className="w-full pl-10 pr-4 py-2 sm:py-3 bg-muted border-0 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-            
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn-outline flex items-center gap-2"
-            >
-              <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">Filters</span>
-            </button>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const thisWeekValue = weekOptions[0]?.value;
+                  if (weekFilter === thisWeekValue) {
+                    setWeekFilter('all');
+                  } else {
+                    setWeekFilter(thisWeekValue);
+                  }
+                }}
+                className={`${
+                  weekFilter === weekOptions[0]?.value
+                    ? 'btn-primary'
+                    : 'btn-outline'
+                } flex items-center gap-2 whitespace-nowrap`}
+              >
+                <span>This Week</span>
+              </button>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="btn-outline flex items-center gap-2 relative"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
           
           {/* Collapsible filters */}
           {showFilters && (
-            <div className="mt-4 p-4 bg-muted rounded-lg">
+            <div className="mt-4 p-4 bg-muted rounded-lg space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Time Period</label>
+                  <label className="block text-sm font-medium mb-2">Week</label>
                   <select
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
+                    value={weekFilter}
+                    onChange={(e) => setWeekFilter(e.target.value)}
                     className="weekly-form__input"
                   >
-                    <option value="all">All Time</option>
-                    <option value="this_week">This Week</option>
-                    <option value="last_week">Last Week</option>
-                    <option value="this_month">This Month</option>
+                    <option value="all">All Weeks</option>
+                    {weekOptions.map(week => (
+                      <option key={week.value} value={week.value}>
+                        {week.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Sort By</label>
-                  <select className="weekly-form__input">
-                    <option value="recent">Most Recent</option>
-                    <option value="popular">Most Popular</option>
-                    <option value="name">Name</option>
+                  <label className="block text-sm font-medium mb-2">Team Member</label>
+                  <select
+                    value={memberFilter}
+                    onChange={(e) => setMemberFilter(e.target.value)}
+                    className="weekly-form__input"
+                  >
+                    <option value="all">All Members</option>
+                    {members.map(member => (
+                      <option key={member.user_id} value={member.user_id}>
+                        {member.full_name || member.email}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
+
+              {activeFiltersCount > 0 && (
+                <div className="flex items-center justify-between pt-3 border-t border-border">
+                  <span className="text-sm text-muted-foreground">
+                    {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} active
+                  </span>
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Active filter indicators */}
+          {activeFiltersCount > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {searchTerm && (
+                <div className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
+                  <span>Search: &ldquo;{searchTerm}&rdquo;</span>
+                  <button
+                    onClick={() => removeFilter('search')}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              {weekFilter !== 'all' && (
+                <div className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
+                  <span>Week: {weekOptions.find(w => w.value === weekFilter)?.label}</span>
+                  <button
+                    onClick={() => removeFilter('week')}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              {memberFilter !== 'all' && (
+                <div className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
+                  <span>Member: {members.find(m => m.user_id === memberFilter)?.full_name || 'Unknown'}</span>
+                  <button
+                    onClick={() => removeFilter('member')}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -294,9 +469,25 @@ export default function CommunityBoard() {
       
       {/* Entry grid/list */}
       <div className="container-safe py-6">
+        {/* Results counter */}
+        {!loading && (
+          <div className="mb-4 text-sm text-muted-foreground">
+            {activeFiltersCount > 0 ? (
+              <span>
+                Showing {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+                {weekFilter !== 'all' && ` for ${weekOptions.find(w => w.value === weekFilter)?.label}`}
+                {memberFilter !== 'all' && ` by ${members.find(m => m.user_id === memberFilter)?.full_name || 'member'}`}
+                {searchTerm && ` matching \u201C${searchTerm}\u201D`}
+              </span>
+            ) : (
+              <span>Showing {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}</span>
+            )}
+          </div>
+        )}
+
         <div className={
-          viewMode === 'grid' 
-            ? 'community-grid' 
+          viewMode === 'grid'
+            ? 'community-grid'
             : 'space-y-4'
         }>
           {filteredEntries.map((entry) => (
