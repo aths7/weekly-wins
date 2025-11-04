@@ -45,31 +45,43 @@ export default function WeeklyEntryForm() {
 
   const [expandedSections, setExpandedSections] = useState<string[]>(['wins']);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [autoSaving, setAutoSaving] = useState(false);
-  // const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState(getNextFriday());
 
   const { isMobile } = useBreakpoint();
   const { user } = useAuth();
   const { currentOrganization } = useOrganizations();
   const router = useRouter();
 
-  // Load existing draft when component mounts
+  // Load from localStorage on mount (immediate restore)
   useEffect(() => {
-    if (user) {
-      loadExistingEntry();
+    const savedData = localStorage.getItem('weeklyEntryDraft');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setFormData(parsed);
+        setSelectedWeek(parsed.weekEndingDate);
+      } catch (e) {
+        console.error('Error loading from localStorage:', e);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
-  // Reload entry when week ending date changes
+  // Save to localStorage whenever formData changes
   useEffect(() => {
-    if (user && formData.weekEndingDate) {
+    localStorage.setItem('weeklyEntryDraft', JSON.stringify(formData));
+  }, [formData]);
+
+  // Load existing entry from database when user or selectedWeek changes
+  useEffect(() => {
+    if (user && selectedWeek) {
       loadExistingEntry();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.weekEndingDate, user]);
+  }, [user, selectedWeek, currentOrganization?.id]);
 
   const toggleSection = (section: string) => {
     if (isMobile) {
@@ -94,13 +106,14 @@ export default function WeeklyEntryForm() {
   const loadExistingEntry = async () => {
     if (!user) return;
 
+    setInitialLoading(true);
     try {
       // Build query with organization context
       let query = supabase
         .from('weekly_entries')
         .select('*')
         .eq('user_id', user.id)
-        .eq('week_ending_date', formData.weekEndingDate);
+        .eq('week_ending_date', selectedWeek);
 
       // Add organization filter if user is in an organization (with error handling)
       try {
@@ -121,8 +134,8 @@ export default function WeeklyEntryForm() {
       }
 
       if (data) {
-        // Load existing data
-        setFormData({
+        // Load existing data from database
+        const loadedData = {
           wins: Array.isArray(data.wins) ? data.wins : ['', '', ''],
           workSummary: data.work_summary || '',
           resultsContributed: data.results_contributed || '',
@@ -131,25 +144,35 @@ export default function WeeklyEntryForm() {
           weekEndingDate: data.week_ending_date,
           isPublished: data.is_published,
           id: data.id
-        });
+        };
+        setFormData(loadedData);
+        localStorage.setItem('weeklyEntryDraft', JSON.stringify(loadedData));
       } else {
-        setFormData({
-          wins: ['', '', ''],
-          workSummary: '',
-          resultsContributed: '',
-          learnings: '',
-          challenges: '',
-          weekEndingDate: formData.weekEndingDate,
-          isPublished: false,
-        });
+        // Only reset if no localStorage data exists
+        const savedData = localStorage.getItem('weeklyEntryDraft');
+        if (!savedData || JSON.parse(savedData).weekEndingDate !== selectedWeek) {
+          const emptyData = {
+            wins: ['', '', ''],
+            workSummary: '',
+            resultsContributed: '',
+            learnings: '',
+            challenges: '',
+            weekEndingDate: selectedWeek,
+            isPublished: false,
+          };
+          setFormData(emptyData);
+          localStorage.setItem('weeklyEntryDraft', JSON.stringify(emptyData));
+        }
       }
     } catch (error) {
       console.error('Error loading existing entry:', error);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
   const autoSave = async () => {
-    if (!user || autoSaving) return;
+    if (!user || autoSaving || initialLoading) return;
 
     const hasContent = formData.wins.some(win => win.trim()) ||
       formData.workSummary.trim() ||
@@ -161,7 +184,7 @@ export default function WeeklyEntryForm() {
 
     setAutoSaving(true);
     try {
-      const entryData: WeeklyEntryData = {
+      const entryData: Partial<WeeklyEntryData> & { id?: string } = {
         user_id: user.id,
         week_ending_date: formData.weekEndingDate,
         wins: formData.wins,
@@ -172,24 +195,29 @@ export default function WeeklyEntryForm() {
         is_published: false,
       };
 
-      // Try to add organization_id if available
-      try {
-        if (currentOrganization) {
-          entryData.organization_id = currentOrganization.id;
-        } else {
-          entryData.organization_id = undefined;
-        }
-      } catch (orgError) {
-        console.warn('Organization ID not supported in auto-save:', orgError);
+      // Add organization_id if available
+      if (currentOrganization) {
+        entryData.organization_id = currentOrganization.id;
       }
 
-      const { error } = await supabase
-        .from('weekly_entries')
-        .upsert(entryData, {
-          onConflict: 'user_id,week_ending_date'
-        });
-
-      if (error) throw error;
+      // Use update if we have an ID, otherwise insert
+      if (formData.id) {
+        const { error } = await supabase
+          .from('weekly_entries')
+          .update(entryData)
+          .eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('weekly_entries')
+          .insert([entryData])
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) {
+          setFormData(prev => ({ ...prev, id: data.id }));
+        }
+      }
     } catch (err) {
       console.error('Auto-save error:', err);
     } finally {
@@ -199,10 +227,12 @@ export default function WeeklyEntryForm() {
 
   // Auto-save every 30 seconds
   useEffect(() => {
-    const interval = setInterval(autoSave, 30000);
+    const interval = setInterval(() => {
+      autoSave();
+    }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData, user, autoSaving]);
+  }, [user, autoSaving, initialLoading]);
 
   const handleSubmit = async (publish: boolean) => {
     if (!user) return;
@@ -212,7 +242,7 @@ export default function WeeklyEntryForm() {
     setSuccess('');
 
     try {
-      const entryData: WeeklyEntryData = {
+      const entryData: Partial<WeeklyEntryData> & { id?: string } = {
         user_id: user.id,
         week_ending_date: formData.weekEndingDate,
         wins: formData.wins,
@@ -223,26 +253,30 @@ export default function WeeklyEntryForm() {
         is_published: publish,
       };
 
-      // Try to add organization_id if available
-      try {
-        if (currentOrganization) {
-          entryData.organization_id = currentOrganization.id;
-        } else {
-          entryData.organization_id = undefined;
-        }
-      } catch (orgError) {
-        console.warn('Organization ID not supported in submit:', orgError);
+      // Add organization_id if available
+      if (currentOrganization) {
+        entryData.organization_id = currentOrganization.id;
       }
 
-      const { error } = await supabase
-        .from('weekly_entries')
-        .upsert(entryData, {
-          onConflict: 'user_id,week_ending_date'
-        });
-
-      if (error) throw error;
+      // Use update if we have an ID, otherwise insert
+      if (formData.id) {
+        const { error } = await supabase
+          .from('weekly_entries')
+          .update(entryData)
+          .eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('weekly_entries')
+          .insert([entryData]);
+        if (error) throw error;
+      }
 
       setSuccess(publish ? 'Entry published successfully!' : 'Draft saved successfully!');
+
+      // Clear localStorage draft after successful save
+      localStorage.removeItem('weeklyEntryDraft');
+
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
@@ -379,12 +413,25 @@ export default function WeeklyEntryForm() {
           </label>
           <input
             type="date"
-            value={formData.weekEndingDate}
-            onChange={(e) => updateField('weekEndingDate', e.target.value)}
+            value={selectedWeek}
+            onChange={(e) => {
+              setSelectedWeek(e.target.value);
+              setFormData(prev => ({ ...prev, weekEndingDate: e.target.value }));
+            }}
             className="weekly-form__input max-w-xs"
           />
         </div>
       </div>
+
+      {/* Loading State */}
+      {initialLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Loading entry...</span>
+          </div>
+        </div>
+      )}
 
       {/* Status Messages */}
       {error && (
@@ -400,7 +447,7 @@ export default function WeeklyEntryForm() {
       )}
 
       {/* Draft Indicator */}
-      {formData.isPublished === false && (
+      {!initialLoading && formData.isPublished === false && (
         formData.wins.some(win => win.trim()) ||
         formData.workSummary.trim() ||
         formData.resultsContributed.trim() ||
@@ -413,7 +460,8 @@ export default function WeeklyEntryForm() {
         )}
 
       {/* Form Sections */}
-      <div className="weekly-form">
+      {!initialLoading && (
+        <div className="weekly-form">
         {sections.map((section) => {
           const isExpanded = !isMobile || expandedSections.includes(section.id);
 
@@ -457,8 +505,10 @@ export default function WeeklyEntryForm() {
           );
         })}
       </div>
+      )}
 
       {/* Action Buttons */}
+      {!initialLoading && (
       <div className="sticky bottom-0 bg-background border-t border-border p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-4xl mx-auto">
           <div className="flex-1 text-center sm:text-left">
@@ -510,6 +560,7 @@ export default function WeeklyEntryForm() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
